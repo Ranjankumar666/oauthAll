@@ -18,7 +18,14 @@ exports.googleURL = oauth2Client.generateAuthUrl({
     prompt: "consent",
 });
 
-exports.githubURL = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}`;
+const githubConfig = {
+    client_id: process.env.GITHUB_CLIENT_ID,
+    scope: ["read:user", "user:email"].join(" "),
+};
+
+exports.githubURL = `https://github.com/login/oauth/authorize?${qs.encode(
+    githubConfig
+)}`;
 
 const facebookConfig = qs.encode({
     client_id: process.env.FACEBOOK_CLIENT_ID,
@@ -65,21 +72,21 @@ exports.github = async (req, res) => {
     const { code } = req.query;
 
     try {
-        const { data } = await axios({
-            url: "https://github.com/login/oauth/access_token",
-            method: "get",
-            params: {
+        const { data } = await axios.post(
+            "https://github.com/login/oauth/access_token",
+            {
                 client_id: process.env.GITHUB_CLIENT_ID,
                 client_secret: process.env.GITHUB_SECRET,
                 code,
-            },
-        });
+            }
+        );
 
+        console.log(data);
         const { access_token, token_type } = qs.parse(data);
 
         const requestURLS = [
-            "https://api.github.com/user",
             "https://api.github.com/user/emails",
+            "https://api.github.com/user",
         ];
 
         const requests = requestURLS.map((url) =>
@@ -90,11 +97,15 @@ exports.github = async (req, res) => {
             })
         );
 
-        Promise.all(requests).then((data) => {
-            data.forEach((request) => {
-                console.log(request.data);
+        Promise.all(requests)
+            .then((data) => {
+                data.forEach((request) => {
+                    console.log(request.data);
+                });
+            })
+            .catch((err) => {
+                console.log(err.message);
             });
-        });
 
         res.redirect("/");
     } catch (err) {
