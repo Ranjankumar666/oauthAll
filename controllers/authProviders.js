@@ -1,7 +1,6 @@
 const { google } = require("googleapis");
 const { default: axios } = require("axios");
 const qs = require("querystring");
-const { get } = require("http");
 
 const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -48,7 +47,6 @@ exports.google = async (req, res) => {
             alt: "json",
             access_token,
         },
-
         headers: {
             Authorization: `Bearer ${id_token}`,
         },
@@ -79,15 +77,25 @@ exports.github = async (req, res) => {
 
         const { access_token, token_type } = qs.parse(data);
 
-        const response = await axios({
-            url: "https://api.github.com/user",
-            method: "get",
-            headers: {
-                Authorization: `token ${access_token}`,
-            },
+        const requestURLS = [
+            "https://api.github.com/user",
+            "https://api.github.com/user/emails",
+        ];
+
+        const requests = requestURLS.map((url) =>
+            axios.get(url, {
+                headers: {
+                    Authorization: `token ${access_token}`,
+                },
+            })
+        );
+
+        Promise.all(requests).then((data) => {
+            data.forEach((request) => {
+                console.log(request.data);
+            });
         });
 
-        console.log(response.data);
         res.redirect("/");
     } catch (err) {
         console.log(err.message);
